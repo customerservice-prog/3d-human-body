@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Human Atlas 3D — Interactive Anatomy Explorer</title>
+  <meta name="description" content="Explore the human body in interactive 3D. Click, isolate, search, and learn anatomy system by system." />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+  <style>
+    :root{
+      --bg:#07111f;--panel:#0d1b2c;--panel2:#102338;--line:#223a54;--text:#edf6ff;--muted:#93a9bf;
+      --accent:#5ee7ff;--accent2:#a77bff;--good:#55e6a5;--warn:#ffcf67;--danger:#ff6b7d;
+      --shadow:0 24px 80px rgba(0,0,0,.35);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;overflow:hidden;background:radial-gradient(circle at 50% -10%,#173351 0,#07111f 42%,#040a12 100%);color:var(--text)}
+    button,input,select{font:inherit}
+    button{color:inherit}
+    .app{height:100%;display:grid;grid-template-rows:72px 1fr}
+    header{display:flex;align-items:center;gap:18px;padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(5,13,24,.78);backdrop-filter:blur(18px);z-index:20}
+    .brand{display:flex;align-items:center;gap:11px;min-width:max-content}
+    .brand-mark{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;color:#06101d;font-weight:900;box-shadow:0 0 32px rgba(94,231,255,.26)}
+    .brand strong{display:block;font-size:15px;letter-spacing:.04em}
+    .brand span{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+    .search{position:relative;flex:1;max-width:680px}
+    .search input{width:100%;height:44px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:#0a1726;color:var(--text);padding:0 46px 0 16px;outline:none}
+    .search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94,231,255,.08)}
+    .search-kbd{position:absolute;right:10px;top:9px;color:var(--muted);font-size:11px;border:1px solid var(--line);border-radius:8px;padding:5px 7px}
+    .header-actions{margin-left:auto;display:flex;gap:8px}
+    .ghost,.primary{height:40px;border-radius:12px;border:1px solid rgba(255,255,255,.1);padding:0 13px;cursor:pointer;background:#0b1929}
+    .primary{background:linear-gradient(135deg,#1b6f87,#6b48a6);border-color:transparent;font-weight:700}
+    main{min-height:0;display:grid;grid-template-columns:270px minmax(0,1fr) 360px}
+    aside{background:rgba(8,18,31,.84);backdrop-filter:blur(16px);min-height:0;overflow:auto}
+    .left{border-right:1px solid rgba(255,255,255,.08);padding:14px}
+    .right{border-left:1px solid rgba(255,255,255,.08)}
+    .section-title{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#7891a8;margin:14px 8px 9px;font-weight:800}
+    .system-btn{width:100%;display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:8px;padding:10px;border:1px solid transparent;border-radius:12px;background:transparent;text-align:left;cursor:pointer;margin-bottom:3px}
+    .system-btn:hover,.system-btn.active{background:#10243a;border-color:#1e3b58}
+    .system-icon{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:#132a40;font-size:15px}
+    .system-btn small{color:var(--muted)}
+    .count{font-size:10px;background:#0a1726;border:1px solid var(--line);border-radius:99px;padding:3px 6px;color:#9fb1c1}
+    .layer-card{padding:10px;border:1px solid var(--line);border-radius:14px;background:#0b1928;margin-bottom:8px}
+    .layer-row{display:flex;align-items:center;gap:9px}
+    .switch{margin-left:auto;appearance:none;width:36px;height:20px;border-radius:99px;background:#26384a;position:relative;cursor:pointer;transition:.2s}
+    .switch:checked{background:#3fa7bd}
+    .switch:after{content:"";position:absolute;width:14px;height:14px;background:white;border-radius:50%;top:3px;left:3px;transition:.2s}
+    .switch:checked:after{left:19px}
+    .opacity{width:100%;margin-top:9px}
+    .stage{position:relative;min-width:0;min-height:0;overflow:hidden}
+    #viewport{position:absolute;inset:0}
+    #viewport canvas{display:block;width:100%;height:100%}
+    .top-overlay{position:absolute;top:14px;left:14px;right:14px;display:flex;gap:8px;pointer-events:none}
+    .pill{pointer-events:auto;border:1px solid rgba(255,255,255,.12);background:rgba(5,14,24,.72);backdrop-filter:blur(12px);border-radius:12px;padding:9px 11px;font-size:12px;color:#d9e7f4}
+    .pill button{all:unset;cursor:pointer}
+    .viewer-controls{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;padding:6px;background:rgba(5,14,24,.78);border:1px solid rgba(255,255,255,.1);border-radius:16px;backdrop-filter:blur(14px)}
+    .viewer-controls button{border:0;background:transparent;border-radius:10px;padding:8px 11px;cursor:pointer;font-size:12px}
+    .viewer-controls button:hover{background:#17304a}
+    .hint{position:absolute;bottom:18px;right:18px;color:#7f95aa;font-size:11px}
+    .empty-card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,85%);background:rgba(6,15,25,.78);border:1px solid rgba(255,255,255,.09);border-radius:20px;padding:22px;text-align:center;backdrop-filter:blur(14px);pointer-events:none;opacity:.92}
+    .empty-card h2{margin:0 0 8px;font-size:22px}
+    .empty-card p{margin:0;color:var(--muted);line-height:1.55}
+    .detail-head{padding:18px;border-bottom:1px solid rgba(255,255,255,.08);position:sticky;top:0;background:rgba(8,18,31,.95);z-index:4}
+    .eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--accent);font-weight:800}
+    .detail-head h1{font-size:25px;margin:6px 0 5px;line-height:1.1}
+    .latin{font-size:12px;color:var(--muted);font-style:italic}
+    .detail-body{padding:18px}
+    .fact-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}
+    .fact{border:1px solid var(--line);background:#0a1726;border-radius:12px;padding:10px}
+    .fact strong{display:block;font-size:15px}.fact span{display:block;font-size:10px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.08em}
+    .detail-body h3{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:#a7bbcd;margin:18px 0 7px}
+    .detail-body p{font-size:13px;color:#c0d0df;line-height:1.6;margin:0}
+    .chips{display:flex;flex-wrap:wrap;gap:6px}
+    .chip{font-size:11px;background:#11263b;border:1px solid #21425f;padding:6px 8px;border-radius:99px;cursor:pointer}
+    .action-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+    .action-row button{border:1px solid var(--line);background:#102338;border-radius:11px;padding:9px;cursor:pointer}
+    .action-row button:hover{border-color:#3c6e93}
+    .search-results{position:absolute;z-index:50;left:0;right:0;top:49px;background:#091726;border:1px solid #24435f;border-radius:14px;box-shadow:var(--shadow);max-height:420px;overflow:auto;display:none}
+    .result{display:grid;grid-template-columns:34px 1fr auto;gap:9px;align-items:center;padding:10px;border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer}
+    .result:hover{background:#10243a}.result:last-child{border:0}
+    .result small{color:var(--muted);display:block;margin-top:2px}
+    .result-tag{font-size:9px;padding:3px 5px;border:1px solid #294968;border-radius:6px;color:#9bb2c5}
+    .legend{position:absolute;left:15px;bottom:15px;background:rgba(5,14,24,.66);padding:9px;border-radius:12px;border:1px solid rgba(255,255,255,.08);font-size:10px;color:#8ba0b4}
+    @media(max-width:1050px){main{grid-template-columns:220px 1fr}.right{position:absolute;right:0;top:72px;bottom:0;width:350px;z-index:30;transform:translateX(102%);transition:.25s}.right.open{transform:none}.header-actions .ghost{display:none}}
+    @media(max-width:760px){header{padding:10px}.brand span,.search-kbd{display:none}.brand strong{font-size:13px}.app{grid-template-rows:64px 1fr}main{grid-template-columns:1fr}.left{display:none}.right{top:64px;width:min(92vw,360px)}.empty-card{display:none}.header-actions{display:none}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="brand-mark">H3</div>
+      <div><strong>HUMAN ATLAS 3D</strong><span>Explore • Understand • Master</span></div>
+    </div>
+    <div class="search">
+      <input id="searchInput" autocomplete="off" placeholder="Search brain, skull, femur, heart, kidney..." />
+      <div class="search-kbd">⌘ K</div>
+      <div id="searchResults" class="search-results"></div>
+    </div>
+    <div class="header-actions">
+      <button class="ghost" id="resetBtn">Reset view</button>
+      <button class="primary" id="quizBtn">Quiz me</button>
+    </div>
+  </header>
+
+  <main>
+    <aside class="left">
+      <div class="section-title">Body systems</div>
+      <div id="systemList"></div>
+      <div class="section-title">Visible layers</div>
+      <div id="layerList"></div>
+    </aside>
+
+    <section class="stage">
+      <div id="viewport"></div>
+      <div class="top-overlay">
+        <div class="pill" id="breadcrumb">Whole body</div>
+        <div class="pill">Click any highlighted structure to learn it</div>
+      </div>
+      <div class="empty-card" id="introCard">
+        <h2>Your body, explorable.</h2>
+        <p>Rotate, zoom, and click directly on anatomy. Hide systems to peel the body apart. Search any structure by name and jump straight to it.</p>
+      </div>
+      <div class="viewer-controls">
+        <button id="frontBtn">Front</button>
+        <button id="backBtn">Back</button>
+        <button id="leftBtn">Left</button>
+        <button id="rightBtn">Right</button>
+        <button id="isolateBtn">Isolate</button>
+        <button id="restoreBtn">Restore</button>
+      </div>
+      <div class="hint">Drag = rotate • Wheel/pinch = zoom • Click = inspect</div>
+    </section>
+
+    <aside class="right" id="detailPanel">
+      <div class="detail-head">
+        <div class="eyebrow" id="detailSystem">Interactive anatomy</div>
+        <h1 id="detailTitle">Human Body</h1>
+        <div class="latin" id="detailLatin">Select a structure to begin</div>
+      </div>
+      <div class="detail-body">
+        <div id="detailContent">
+          <p>Start with the whole body, then peel through systems: skeleton, nervous system, organs, circulation, and respiratory anatomy. This first foundation is designed so more detailed medical-grade meshes and thousands of structures can be added without rebuilding the experience.</p>
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const SYSTEMS = {
+  all:{label:'All systems',icon:'◉'},
+  skeletal:{label:'Skeletal',icon:'🦴'},
+  nervous:{label:'Nervous',icon:'⚡'},
+  cardiovascular:{label:'Cardiovascular',icon:'♥'},
+  respiratory:{label:'Respiratory',icon:'◌'},
+  digestive:{label:'Digestive',icon:'≈'},
+  urinary:{label:'Urinary',icon:'◆'}
+};
+
+const anatomy = [
+  {id:'skull',name:'Skull',latin:'Cranium',system:'skeletal',region:'Head',summary:'The bony framework of the head. It protects the brain and supports the structures of the face.',function:'Protects the brain, forms the facial skeleton, anchors muscles, and houses organs for vision, hearing, smell and taste.',connections:['Brain','Cervical spine','Mandible'],facts:[['22','bones'],['8','cranial bones']],shape:'skull',pos:[0,3.35,0],color:0xe8e0d2},
+  {id:'brain',name:'Brain',latin:'Encephalon',system:'nervous',region:'Head',summary:'The central control organ of the nervous system, responsible for sensation, movement, thought, memory, emotion and homeostasis.',function:'Processes sensory input, coordinates motor activity, controls autonomic functions and supports cognition and consciousness.',connections:['Spinal cord','Cranial nerves','Eyes'],facts:[['~1.4 kg','adult mass'],['86B','neurons (approx.)']],shape:'brain',pos:[0,3.38,0],color:0xf2a5b8},
+  {id:'spinal-cord',name:'Spinal Cord',latin:'Medulla spinalis',system:'nervous',region:'Torso',summary:'A long bundle of nervous tissue running from the brainstem through the vertebral canal.',function:'Carries signals between brain and body and coordinates many reflexes.',connections:['Brain','Spinal nerves','Vertebral column'],facts:[['~43 cm','adult length'],['31','spinal nerve pairs']],shape:'cord',pos:[0,1.35,-0.16],color:0xffdd73},
+  {id:'spine',name:'Vertebral Column',latin:'Columna vertebralis',system:'skeletal',region:'Torso',summary:'The flexible bony column extending from the skull to the pelvis.',function:'Protects the spinal cord, supports the head and trunk, and provides attachment sites for muscles and ribs.',connections:['Skull','Ribs','Pelvis'],facts:[['33','vertebrae initially'],['5','major regions']],shape:'spine',pos:[0,1.25,-0.1],color:0xe7dfcf},
+  {id:'ribs',name:'Rib Cage',latin:'Cavea thoracis',system:'skeletal',region:'Chest',summary:'The thoracic cage formed mainly by ribs, sternum and thoracic vertebrae.',function:'Protects the heart and lungs while supporting breathing mechanics.',connections:['Thoracic spine','Sternum','Intercostal muscles'],facts:[['12','rib pairs'],['24','ribs']],shape:'ribs',pos:[0,1.6,0],color:0xe7dfcf},
+  {id:'pelvis',name:'Pelvis',latin:'Pelvis',system:'skeletal',region:'Pelvis',summary:'A ring-like bony structure connecting the spine to the lower limbs.',function:'Transfers body weight to the legs and protects pelvic organs.',connections:['Sacrum','Femur','Lumbar spine'],facts:[['2','hip bones'],['1','pelvic ring']],shape:'pelvis',pos:[0,-0.28,0],color:0xe7dfcf},
+  {id:'heart',name:'Heart',latin:'Cor',system:'cardiovascular',region:'Chest',summary:'A muscular pump that circulates blood through the pulmonary and systemic circulations.',function:'Generates pressure that moves blood, delivering oxygen and nutrients and removing waste products.',connections:['Aorta','Pulmonary arteries','Venae cavae'],facts:[['4','chambers'],['~100k','beats/day']],shape:'heart',pos:[-0.16,1.42,0.34],color:0xd8344f},
+  {id:'lungs',name:'Lungs',latin:'Pulmones',system:'respiratory',region:'Chest',summary:'Paired respiratory organs where oxygen enters the blood and carbon dioxide leaves it.',function:'Ventilation and gas exchange across millions of alveoli.',connections:['Trachea','Bronchi','Pulmonary vessels'],facts:[['2','lungs'],['5','lobes total']],shape:'lungs',pos:[0,1.62,0.16],color:0xf08da0},
+  {id:'trachea',name:'Trachea',latin:'Trachea',system:'respiratory',region:'Neck / Chest',summary:'The main airway conducting air from the larynx toward the bronchi.',function:'Conducts, warms, humidifies and filters inspired air.',connections:['Larynx','Main bronchi','Lungs'],facts:[['~10–12 cm','length'],['16–20','cartilage rings']],shape:'trachea',pos:[0,2.36,0.25],color:0x90d7e8},
+  {id:'liver',name:'Liver',latin:'Hepar',system:'digestive',region:'Upper abdomen',summary:'The largest internal solid organ and a major metabolic hub.',function:'Processes nutrients, detoxifies substances, makes bile, stores glycogen and synthesizes many blood proteins.',connections:['Gallbladder','Portal vein','Duodenum'],facts:[['~1.5 kg','mass'],['500+','functions']],shape:'liver',pos:[0.28,0.62,0.23],color:0x93413e},
+  {id:'stomach',name:'Stomach',latin:'Gaster',system:'digestive',region:'Upper abdomen',summary:'A muscular hollow organ between the esophagus and small intestine.',function:'Stores food, mechanically mixes it, and begins significant chemical digestion.',connections:['Esophagus','Duodenum','Liver'],facts:[['~1 L','typical capacity'],['pH 1–3','gastric acid']],shape:'stomach',pos:[-0.27,0.48,0.22],color:0xd77f71},
+  {id:'intestines',name:'Intestines',latin:'Intestinum',system:'digestive',region:'Abdomen',summary:'The small and large intestines form most of the gastrointestinal tract after the stomach.',function:'Digest food, absorb nutrients and water, host microbiota, and compact waste.',connections:['Stomach','Pancreas','Rectum'],facts:[['~6 m','small intestine'],['~1.5 m','large intestine']],shape:'intestines',pos:[0,-0.05,0.2],color:0xe8a58a},
+  {id:'kidneys',name:'Kidneys',latin:'Renes',system:'urinary',region:'Posterior abdomen',summary:'Paired bean-shaped organs that filter blood and regulate the internal chemical environment.',function:'Remove metabolic waste, balance water/electrolytes, regulate acid-base status and contribute to blood pressure control.',connections:['Ureters','Renal arteries','Renal veins'],facts:[['2','kidneys'],['~1M','nephrons each']],shape:'kidneys',pos:[0,0.38,-0.22],color:0x8f3950},
+  {id:'humerus',name:'Humerus',latin:'Humerus',system:'skeletal',region:'Upper arm',summary:'The long bone of the upper arm between shoulder and elbow.',function:'Provides structural support and leverage for arm movement.',connections:['Scapula','Radius','Ulna'],facts:[['1/arm','bone'],['Long bone','type']],shape:'humerus',pos:[0,0,0],color:0xe7dfcf},
+  {id:'femur',name:'Femur',latin:'Femur',system:'skeletal',region:'Thigh',summary:'The thigh bone and the longest, strongest bone in the human body.',function:'Transfers force between hip and knee and provides leverage for locomotion.',connections:['Pelvis','Patella','Tibia'],facts:[['~48 cm','average adult'],['Longest','human bone']],shape:'femur',pos:[0,0,0],color:0xe7dfcf}
+];
+
+const layerState={skeletal:true,nervous:true,cardiovascular:true,respiratory:true,digestive:true,urinary:true};
+const meshes=[];
+let selected=null;
+let isolated=false;
+
+const viewport=document.getElementById('viewport');
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x07111f,.035);
+const camera=new THREE.PerspectiveCamera(38,1,.1,100);
+camera.position.set(5.8,2.6,10);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.15;
+viewport.appendChild(renderer.domElement);
+
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true;
+controls.target.set(0,1,0);
+controls.minDistance=4;
+controls.maxDistance=18;
+
+scene.add(new THREE.HemisphereLight(0x9fdcff,0x1b2230,2.0));
+const key=new THREE.DirectionalLight(0xffffff,3.2); key.position.set(4,7,7); scene.add(key);
+const rim=new THREE.DirectionalLight(0x7f63ff,2.0); rim.position.set(-5,3,-6); scene.add(rim);
+
+const bodyGroup=new THREE.Group(); scene.add(bodyGroup);
+const grid=new THREE.GridHelper(16,32,0x24425d,0x12283a); grid.position.y=-3.85; scene.add(grid);
+
+function mat(color,opacity=.92){
+  return new THREE.MeshPhysicalMaterial({color,roughness:.5,metalness:0,transparent:opacity<1,opacity,side:THREE.DoubleSide,clearcoat:.08});
+}
+function mesh(geo,color,data,opacity=.92){
+  const m=new THREE.Mesh(geo,mat(color,opacity)); m.userData=data; meshes.push(m); bodyGroup.add(m); return m;
+}
+function capsule(radius,length,color,data,pos,rot=[0,0,0]){
+  const m=mesh(new THREE.CapsuleGeometry(radius,length,10,20),color,data);m.position.set(...pos);m.rotation.set(...rot);return m;
+}
+function sphere(scale,color,data,pos,opacity=.92){
+  const m=mesh(new THREE.SphereGeometry(1,32,24),color,data,opacity);m.scale.set(...scale);m.position.set(...pos);return m;
+}
+function anatomyData(id){return anatomy.find(a=>a.id===id)}
+
+const silhouetteMat=new THREE.MeshPhysicalMaterial({color:0x77c7d9,transparent:true,opacity:.075,roughness:.25,transmission:.08,side:THREE.DoubleSide,depthWrite:false});
+function sil(geo,pos,scale=[1,1,1],rot=[0,0,0]){const m=new THREE.Mesh(geo,silhouetteMat);m.position.set(...pos);m.scale.set(...scale);m.rotation.set(...rot);bodyGroup.add(m)}
+sil(new THREE.SphereGeometry(1,32,24),[0,3.33,0],[.72,.92,.66]);
+sil(new THREE.CapsuleGeometry(.72,2.5,12,24),[0,1.35,0],[1,1,0.75]);
+sil(new THREE.CapsuleGeometry(.27,2.65,10,18),[-1.03,1.1,0],[1,1,1],[0,0,-.08]);
+sil(new THREE.CapsuleGeometry(.27,2.65,10,18),[1.03,1.1,0],[1,1,1],[0,0,.08]);
+sil(new THREE.CapsuleGeometry(.34,2.9,10,18),[-.48,-2.0,0],[1,1,1],[0,0,.05]);
+sil(new THREE.CapsuleGeometry(.34,2.9,10,18),[.48,-2.0,0],[1,1,1],[0,0,-.05]);
+
+// Skull
+sphere([.62,.75,.6],0xe8e0d2,anatomyData('skull'),[0,3.42,0],.82);
+const jaw=capsule(.26,.45,0xe8e0d2,anatomyData('skull'),[0,2.9,.08],[Math.PI/2,0,0]); jaw.scale.x=1.45;
+// Brain
+sphere([.53,.58,.48],0xf2a5b8,anatomyData('brain'),[0,3.46,.02]);
+for(let i=0;i<8;i++){const l=mesh(new THREE.TorusGeometry(.28+i*.018,.018,8,36,Math.PI*1.45),0xe48fa7,anatomyData('brain'));l.position.set((i%2?-.05:.06),3.42+(i-4)*.055,.45);l.rotation.set(1.4,0,(i%2?1:-1)*.25)}
+
+// Spine and cord
+for(let i=0;i<24;i++){
+  const y=2.55-i*.16, sway=Math.sin(i*.25)*.035;
+  const v=mesh(new THREE.BoxGeometry(.32,.115,.28),0xe7dfcf,anatomyData('spine'));v.position.set(sway,y,-.15);v.rotation.y=(i%2?1:-1)*.05;
+}
+capsule(.055,3.65,0xffdc68,anatomyData('spinal-cord'),[0,.9,-.1]);
+
+// Ribs + sternum
+for(let side of [-1,1]) for(let i=0;i<10;i++){
+  const y=2.22-i*.15, radius=.62+i*.03;
+  const curve=new THREE.TorusGeometry(radius,.035,8,38,Math.PI*.78);
+  const r=mesh(curve,0xe7dfcf,anatomyData('ribs'));
+  r.position.set(side*.03,y,-.02);r.rotation.set(Math.PI/2,side>0?-.26:.26,side>0?-.42:.42);r.scale.z=.78;
+}
+capsule(.07,1.35,0xe7dfcf,anatomyData('ribs'),[0,1.58,.36]);
+
+// pelvis
+const pel=mesh(new THREE.TorusGeometry(.58,.14,16,42,Math.PI*1.7),0xe7dfcf,anatomyData('pelvis'));pel.position.set(0,-.3,0);pel.rotation.set(Math.PI/2,0,.5);
+
+// arm bones
+for(const side of [-1,1]){
+  capsule(.09,1.3,0xe7dfcf,anatomyData('humerus'),[side*.92,1.25,0],[0,0,side*.05]);
+  capsule(.065,1.18,0xe7dfcf,anatomyData('humerus'),[side*1.02,-.03,.02],[0,0,-side*.04]);
+  capsule(.055,1.15,0xe7dfcf,anatomyData('humerus'),[side*1.12,-.03,-.08],[0,0,-side*.07]);
+}
+
+// leg bones
+for(const side of [-1,1]){
+  capsule(.105,1.72,0xe7dfcf,anatomyData('femur'),[side*.42,-1.45,0],[0,0,-side*.035]);
+  capsule(.075,1.55,0xe7dfcf,anatomyData('femur'),[side*.43,-3.05,0],[0,0,side*.015]);
+  capsule(.052,1.5,0xe7dfcf,anatomyData('femur'),[side*.57,-3.05,-.04],[0,0,side*.02]);
+}
+
+// lungs
+for(const side of [-1,1]){
+  const l=sphere([.43,.78,.34],0xf08da0,anatomyData('lungs'),[side*.39,1.58,.11],.78);l.rotation.z=side*.08;
+}
+// trachea + bronchi
+capsule(.095,.75,0x90d7e8,anatomyData('trachea'),[0,2.42,.22]);
+for(const side of [-1,1]){const b=capsule(.06,.56,0x90d7e8,anatomyData('trachea'),[side*.18,2.02,.2],[0,0,side*.65]);}
+
+// heart
+const h=sphere([.34,.46,.31],0xd8344f,anatomyData('heart'),[-.14,1.35,.39]);h.rotation.z=-.35;
+const aorta=mesh(new THREE.TorusGeometry(.2,.05,10,28,Math.PI*1.1),0xe84550,anatomyData('heart'));aorta.position.set(-.05,1.78,.37);aorta.rotation.set(0,0,-.8);
+
+// liver
+const liver=sphere([.78,.32,.42],0x93413e,anatomyData('liver'),[.26,.62,.22]);liver.rotation.z=-.08;
+// stomach
+const stomach=sphere([.32,.48,.28],0xd77f71,anatomyData('stomach'),[-.33,.45,.22]);stomach.rotation.z=-.42;
+// kidneys
+for(const side of [-1,1]){
+  const k=sphere([.19,.35,.16],0x8f3950,anatomyData('kidneys'),[side*.42,.34,-.22]);k.rotation.z=side*.16;
+}
+// intestines coils
+for(let i=0;i<6;i++){
+  const t=mesh(new THREE.TorusGeometry(.28+i*.055,.07,10,40,Math.PI*1.65),0xe8a58a,anatomyData('intestines'));t.position.set((i%2?.12:-.12),.06-(i%3)*.16,.21);t.rotation.set(Math.PI/2,0,(i%2?1:-1)*.45);
+}
+
+// simple major vessels
+function vessel(points,color,id='heart',radius=.026){
+ const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));
+ const v=mesh(new THREE.TubeGeometry(curve,64,radius,8,false),color,anatomyData(id));return v;
+}
+vessel([[-.05,1.72,.38],[.18,1.92,.35],[.1,2.35,.24],[.06,2.82,.12]],0xd83c51);
+vessel([[.02,1.75,.34],[.02,.7,.22],[.02,-.35,.1],[.02,-1.05,.03]],0xd83c51,.0,.035);
+for(const side of [-1,1]){
+  vessel([[0,-.62,.1],[side*.3,-1.1,.05],[side*.4,-2.0,.02],[side*.43,-3.55,0]],0xd83c51,'heart',.023);
+  vessel([[0,1.72,.33],[side*.42,1.7,.22],[side*.86,1.25,.08],[side*1.05,-.55,.03]],0xd83c51,'heart',.018);
+}
+
+// subtle particles
+const pts=[];for(let i=0;i<240;i++)pts.push((Math.random()-.5)*12,Math.random()*9-4,(Math.random()-.5)*8);
+const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+scene.add(new THREE.Points(pg,new THREE.PointsMaterial({color:0x31516e,size:.018,transparent:true,opacity:.5})));
+
+function countSystem(s){return s==='all'?anatomy.length:anatomy.filter(a=>a.system===s).length}
+const systemList=document.getElementById('systemList');
+Object.entries(SYSTEMS).forEach(([key,s],i)=>{
+ const b=document.createElement('button');b.className='system-btn'+(i===0?' active':'');b.dataset.system=key;
+ b.innerHTML='<span class="system-icon">'+s.icon+'</span><span>'+s.label+'<small>'+ (key==='all'?'Explore everything':'Study this system') +'</small></span><span class="count">'+countSystem(key)+'</span>';
+ b.onclick=()=>{document.querySelectorAll('.system-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');filterSystem(key)};
+ systemList.appendChild(b);
+});
+
+const layerList=document.getElementById('layerList');
+Object.entries(SYSTEMS).filter(([k])=>k!=='all').forEach(([key,s])=>{
+ const c=document.createElement('div');c.className='layer-card';
+ c.innerHTML='<div class="layer-row"><span class="system-icon">'+s.icon+'</span><strong style="font-size:12px">'+s.label+'</strong><input class="switch" type="checkbox" checked data-layer="'+key+'"></div><input class="opacity" type="range" min="12" max="100" value="92" data-opacity="'+key+'">';
+ layerList.appendChild(c);
+});
+document.querySelectorAll('[data-layer]').forEach(el=>el.onchange=()=>{layerState[el.dataset.layer]=el.checked;applyVisibility()});
+document.querySelectorAll('[data-opacity]').forEach(el=>el.oninput=()=>{meshes.filter(m=>m.userData?.system===el.dataset.opacity).forEach(m=>{m.material.opacity=Number(el.value)/100;m.material.transparent=Number(el.value)<100})});
+
+function filterSystem(system){
+ isolated=false;
+ Object.keys(layerState).forEach(k=>layerState[k]=system==='all'||k===system);
+ document.querySelectorAll('[data-layer]').forEach(x=>x.checked=layerState[x.dataset.layer]);
+ applyVisibility();
+}
+function applyVisibility(){
+ meshes.forEach(m=>m.visible=!!layerState[m.userData?.system]);
+}
+function resetOpacity(){
+ document.querySelectorAll('[data-opacity]').forEach(x=>{x.value=92;meshes.filter(m=>m.userData?.system===x.dataset.opacity).forEach(m=>{m.material.opacity=.92;m.material.transparent=true})});
+}
+
+const raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();
+renderer.domElement.addEventListener('pointerdown',e=>{
+ const r=renderer.domElement.getBoundingClientRect();
+ mouse.x=((e.clientX-r.left)/r.width)*2-1;mouse.y=-((e.clientY-r.top)/r.height)*2+1;
+ raycaster.setFromCamera(mouse,camera);
+ const hits=raycaster.intersectObjects(meshes.filter(m=>m.visible),false);
+ if(hits.length){selectStructure(hits[0].object.userData,hits[0].object);document.getElementById('introCard').style.display='none'}
+});
+renderer.domElement.addEventListener('pointermove',e=>{
+ const r=renderer.domElement.getBoundingClientRect();mouse.x=((e.clientX-r.left)/r.width)*2-1;mouse.y=-((e.clientY-r.top)/r.height)*2+1;raycaster.setFromCamera(mouse,camera);
+ const hit=raycaster.intersectObjects(meshes.filter(m=>m.visible),false)[0];renderer.domElement.style.cursor=hit?'pointer':'grab';
+});
+
+function selectStructure(data,hitMesh=null){
+ selected=data;
+ document.getElementById('detailSystem').textContent=SYSTEMS[data.system].label+' system • '+data.region;
+ document.getElementById('detailTitle').textContent=data.name;
+ document.getElementById('detailLatin').textContent=data.latin;
+ document.getElementById('breadcrumb').textContent='Whole body  ›  '+SYSTEMS[data.system].label+'  ›  '+data.name;
+ const c=document.getElementById('detailContent');
+ c.innerHTML='<p>'+data.summary+'</p>'+
+ '<div class="fact-grid">'+data.facts.map(f=>'<div class="fact"><strong>'+f[0]+'</strong><span>'+f[1]+'</span></div>').join('')+'</div>'+
+ '<h3>What it does</h3><p>'+data.function+'</p>'+
+ '<h3>Connected anatomy</h3><div class="chips">'+data.connections.map(x=>'<span class="chip" data-jump="'+x+'">'+x+'</span>').join('')+'</div>'+
+ '<div class="action-row"><button id="focusSelected">Focus in 3D</button><button id="onlySelected">Isolate structure</button></div>'+
+ '<h3>Study prompt</h3><p>Try hiding neighboring systems, rotating behind the structure, and explaining in your own words what this structure protects, moves, carries, filters, or controls.</p>';
+ c.querySelectorAll('[data-jump]').forEach(x=>x.onclick=()=>{const target=anatomy.find(a=>a.name.toLowerCase().includes(x.dataset.jump.toLowerCase()));if(target)selectStructure(target)});
+ document.getElementById('focusSelected').onclick=()=>focusStructure(data);
+ document.getElementById('onlySelected').onclick=()=>isolateSelected();
+ document.getElementById('detailPanel').classList.add('open');
+ if(hitMesh) pulse(hitMesh);
+}
+function pulse(m){
+ const old=m.scale.clone();m.scale.multiplyScalar(1.08);setTimeout(()=>m.scale.copy(old),180);
+}
+function focusStructure(data){
+ const objs=meshes.filter(m=>m.userData?.id===data.id);if(!objs.length)return;
+ const box=new THREE.Box3();objs.forEach(o=>box.expandByObject(o));const center=box.getCenter(new THREE.Vector3());controls.target.copy(center);
+ const size=box.getSize(new THREE.Vector3()).length();const dir=camera.position.clone().sub(controls.target).normalize();camera.position.copy(center.clone().add(dir.multiplyScalar(Math.max(2.2,size*2.2))));
+}
+function isolateSelected(){
+ if(!selected)return;isolated=true;meshes.forEach(m=>m.visible=m.userData?.id===selected.id);focusStructure(selected);
+}
+document.getElementById('isolateBtn').onclick=isolateSelected;
+document.getElementById('restoreBtn').onclick=()=>{isolated=false;Object.keys(layerState).forEach(k=>layerState[k]=true);document.querySelectorAll('[data-layer]').forEach(x=>x.checked=true);applyVisibility();resetOpacity()};
+document.getElementById('resetBtn').onclick=resetView;
+function resetView(){camera.position.set(5.8,2.6,10);controls.target.set(0,1,0);controls.update()}
+function face(x,y,z){camera.position.set(x,y,z);controls.target.set(0,1,0)}
+document.getElementById('frontBtn').onclick=()=>face(0,1.2,10);
+document.getElementById('backBtn').onclick=()=>face(0,1.2,-10);
+document.getElementById('leftBtn').onclick=()=>face(-10,1.2,0);
+document.getElementById('rightBtn').onclick=()=>face(10,1.2,0);
+
+const searchInput=document.getElementById('searchInput'),results=document.getElementById('searchResults');
+function doSearch(){
+ const q=searchInput.value.trim().toLowerCase();if(!q){results.style.display='none';return}
+ const found=anatomy.filter(a=>(a.name+' '+a.latin+' '+a.system+' '+a.region+' '+a.summary).toLowerCase().includes(q)).slice(0,9);
+ results.innerHTML=found.length?found.map(a=>'<div class="result" data-id="'+a.id+'"><span class="system-icon">'+SYSTEMS[a.system].icon+'</span><span><strong>'+a.name+'</strong><small>'+a.region+' • '+a.latin+'</small></span><span class="result-tag">'+SYSTEMS[a.system].label+'</span></div>').join(''):'<div class="result"><span></span><span>No structure found yet<small>The atlas database is built to expand.</small></span></div>';
+ results.style.display='block';
+ results.querySelectorAll('[data-id]').forEach(el=>el.onclick=()=>{const a=anatomy.find(x=>x.id===el.dataset.id);Object.keys(layerState).forEach(k=>layerState[k]=true);applyVisibility();selectStructure(a);focusStructure(a);results.style.display='none';searchInput.value=a.name});
+}
+searchInput.addEventListener('input',doSearch);
+searchInput.addEventListener('focus',doSearch);
+document.addEventListener('click',e=>{if(!e.target.closest('.search'))results.style.display='none'});
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();searchInput.focus()}if(e.key==='Escape'){results.style.display='none';document.getElementById('detailPanel').classList.remove('open')}});
+
+document.getElementById('quizBtn').onclick=()=>{
+ const candidates=anatomy.filter(a=>layerState[a.system]);const a=candidates[Math.floor(Math.random()*candidates.length)]||anatomy[0];
+ selectStructure(a);focusStructure(a);
+ const c=document.getElementById('detailContent');
+ c.innerHTML='<div style="border:1px solid #2c506f;border-radius:16px;padding:14px;background:#0c1d2f"><div class="eyebrow">Quick quiz</div><h2 style="margin:7px 0 8px">Find the '+a.name+'</h2><p>Close this panel, rotate the body and click the correct structure. Use the system layers if you need a hint.</p><button class="primary" style="margin-top:12px" id="revealQuiz">Reveal answer</button></div>';
+ document.getElementById('revealQuiz').onclick=()=>{selectStructure(a);isolateSelected()};
+};
+
+function resize(){
+ const w=viewport.clientWidth,h=viewport.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);
+}
+window.addEventListener('resize',resize);resize();
+
+const clock=new THREE.Clock();
+function animate(){
+ requestAnimationFrame(animate);const t=clock.getElapsedTime();
+ meshes.filter(m=>m.userData?.id==='heart').forEach((m,i)=>{if(i===0){const s=1+Math.sin(t*6)*.018;m.scale.setScalar(s)}});
+ controls.update();renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>
