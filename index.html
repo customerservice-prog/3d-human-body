@@ -235,6 +235,7 @@ function resetLivePose(){
     if(m.userData.baseRotation)m.rotation.copy(m.userData.baseRotation);
     if(m.material&&"emissiveIntensity" in m.material)m.material.emissiveIntensity=0;
   });
+  detailedState.organPivots.forEach(list=>list.forEach(p=>{if(p.userData.baseScale)p.scale.copy(p.userData.baseScale);if(p.userData.basePosition)p.position.copy(p.userData.basePosition)}));
   [...arterialParticles,...venousParticles,...airParticles].forEach(p=>p.mesh.visible=false);
 }
 function showFlows(){
@@ -265,6 +266,10 @@ function animatePhysiology(t){
     m.scale.set(b.x*(1+.075*breathEase),b.y*(1+.045*breathEase),b.z*(1+.11*breathEase));
     p.y+=.025*breathEase;p.x+=(i?1:-1)*.008*breathEase;m.position.copy(p);
   });
+  (detailedState.organPivots.get("lungs")||[]).forEach((p,i)=>{const b=p.userData.baseScale||new THREE.Vector3(1,1,1);p.scale.set(b.x*(1+.045*breathEase),b.y*(1+.035*breathEase),b.z*(1+.06*breathEase));});
+  (detailedState.organPivots.get("heart")||[]).forEach(p=>{const b=p.userData.baseScale||new THREE.Vector3(1,1,1);p.scale.copy(b).multiplyScalar(1+.055*ventriclePulse);});
+  (detailedState.organPivots.get("stomach")||[]).forEach((p,i)=>{const b=p.userData.baseScale||new THREE.Vector3(1,1,1),w=Math.sin(t*1.75+i);p.scale.set(b.x*(1-.009*w),b.y*(1+.014*w),b.z*(1-.007*w));});
+  (detailedState.organPivots.get("intestines")||[]).forEach((p,i)=>{const b=p.userData.baseScale||new THREE.Vector3(1,1,1),w=Math.sin(t*2.3-i*.45);p.scale.set(b.x*(1+.006*w),b.y*(1-.010*w),b.z*(1+.006*w));});
   (meshById["ribs"]||[]).forEach((m,i)=>{
     if(m.geometry?.type!=="TorusGeometry")return;
     const b=m.userData.baseScale;if(!b)return;
@@ -503,7 +508,7 @@ function select(id,focus=false){
    (kids.length?'<h3>Go deeper</h3><div class="children">'+kids.map(k=>'<div class="child" data-open="'+k.id+'"><span><strong>'+k.name+'</strong><small>'+displaySystem(k)+' • '+k.region+'</small></span><span>›</span></div>').join("")+'</div>':"")+
    (conn.length?'<h3>Connected anatomy</h3><div class="chips">'+conn.map(c=>'<button class="chip" data-open="'+c.id+'">'+c.name+'</button>').join("")+'</div>':"")+
    '<div class="actions"><button id="focusBtn">Focus in 3D</button><button id="isolateBtn">Isolate</button></div>'+
-   '<div class="notice">3D geometry is an educational visualization, not a diagnostic or surgical model. The anatomy hierarchy is designed to accept medically reviewed meshes and deeper content as the atlas expands.</div>';
+   '<div class="notice">3D anatomy is educational, not diagnostic or surgical. Detailed meshes include BodyParts3D and Open3Dmodel-derived anatomy. <a href="'+LICENSE_URL+'" target="_blank" rel="noopener" style="color:#8adff3">Sources & licenses</a>.</div>';
  document.querySelectorAll("[data-open]").forEach(el=>el.onclick=()=>{select(el.dataset.open,true);drill(el.dataset.open)});
  document.getElementById("focusBtn").onclick=()=>focusOn(id);
  document.getElementById("isolateBtn").onclick=()=>isolate(id);
@@ -527,7 +532,11 @@ function drill(id){
 function applySystem(filter){
  systemFilter=filter;isolated=false;
  const overviewOpacity={skeletal:.88,nervous:.86,cardiovascular:.96,respiratory:.58,digestive:.82,urinary:.88,endocrine:.92};
- meshes.forEach(m=>{const a=byId[m.userData.id];m.visible=filter==="all"||a?.system===filter;m.material.opacity=filter==="all"?(overviewOpacity[a?.system]??.86):.96;m.material.transparent=m.material.opacity<1});
+ meshes.forEach(m=>{const a=byId[m.userData.id];const allowed=filter==="all"||a?.system===filter;m.visible=allowed&&!m.userData.detailHidden;m.material.opacity=filter==="all"?(overviewOpacity[a?.system]??.86):.96;m.material.transparent=m.material.opacity<1});
+ shellMeshes.forEach(m=>m.visible=!detailedState.enabled&&filter==="all");
+ if(detailedState.skinRoot)detailedState.skinRoot.visible=detailedState.enabled&&filter==="all";
+ if(detailedState.organsRoot)detailedState.organsRoot.visible=detailedState.enabled&&(filter==="all"||["cardiovascular","respiratory","digestive","urinary","nervous"].includes(filter));
+ if(detailedState.skeletonRoot)detailedState.skeletonRoot.visible=detailedState.enabled&&(filter==="all"||filter==="skeletal");
  document.getElementById("mode").textContent=filter==="all"?"Whole-body view":systems[filter].label+" system";showFlows();
 }
 function explode(){
@@ -575,6 +584,7 @@ const hoverLabel=document.getElementById("hoverLabel");renderer.domElement.addEv
 
 document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{const v=b.dataset.view,pos={front:[0,1.1,10],back:[0,1.1,-10],left:[-10,1.1,0],right:[10,1.1,0]}[v];camera.position.set(...pos);controls.target.set(0,1,0)});
 document.getElementById("explode").onclick=explode;document.getElementById("isolate").onclick=()=>isolate(selected.id);document.getElementById("restore").onclick=restore;document.getElementById("reset").onclick=restore;
+const detailToggle=document.getElementById("detailToggle");detailToggle.onclick=()=>{if(!detailedState.loaded){detailToggle.textContent="Loading detailed body…";loadDetailedBody()}else setDetailedMode(!detailedState.enabled)};
 const liveToggle=document.getElementById("liveToggle"),physioHud=document.getElementById("physioHud");liveToggle.onclick=()=>{liveState.enabled=!liveState.enabled;liveToggle.textContent=liveState.enabled?"● Live body":"○ Live paused";liveToggle.classList.toggle("off",!liveState.enabled);physioHud.classList.toggle("paused",!liveState.enabled);if(!liveState.enabled)resetLivePose();else showFlows()};
 document.getElementById("quiz").onclick=()=>{
  const pool=anatomy.filter(a=>a.level>=2&&hasVisibleMesh(a));const a=pool[Math.floor(Math.random()*pool.length)];selected=a;document.getElementById("right").classList.add("open");
@@ -585,7 +595,7 @@ document.getElementById("quiz").onclick=()=>{
 document.addEventListener("keydown",e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){e.preventDefault();search.focus()}if(e.key==="Escape"){results.style.display="none";document.getElementById("right").classList.remove("open")}});
 function resize(){const w=viewport.clientWidth,h=viewport.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}window.addEventListener("resize",resize);resize();
 const clock=new THREE.Clock();function animate(){requestAnimationFrame(animate);const t=clock.getElapsedTime();animatePhysiology(t);controls.update();renderer.render(scene,camera)}animate();
-select("body");applySystem("all");
+select("body");applySystem("all");showFlows();setTimeout(loadDetailedBody,120);
 </script>
 </body>
 </html>
