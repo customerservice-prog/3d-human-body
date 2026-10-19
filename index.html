@@ -151,7 +151,7 @@ for(const side of [-1,1]){
 }
 
 // lungs and airway
-const rl=sph("right-lung",[-.34,1.58,.10],[.38,.76,.30],0xf08da0,.62);rl.rotation.z=-.06;const ll=sph("left-lung",[.35,1.58,.10],[.34,.70,.29],0xf08da0,.62);ll.rotation.z=.08;
+const rl=sph("right-lung",[-.34,1.58,.10],[.38,.76,.30],0xf08da0,.62);rl.rotation.z=-.06;rl.userData.baseRotation=rl.rotation.clone();const ll=sph("left-lung",[.35,1.58,.10],[.34,.70,.29],0xf08da0,.62);ll.rotation.z=.08;ll.userData.baseRotation=ll.rotation.clone();
 cap("trachea",[0,2.43,.23],.09,.76,0x8fd7e8);for(const side of [-1,1])cap("trachea",[side*.18,2.02,.20],.055,.54,0x8fd7e8,[0,0,side*.66]);
 const diaphragm=sph("lungs",[0,1.02,.06],[.70,.075,.34],0x7cc4d6,.26);
 
@@ -163,9 +163,9 @@ tube("aorta",[[-.03,1.70,.35],[.12,1.91,.33],[.08,2.30,.24],[.04,2.82,.12]],0xe8
 tube("aorta",[[.03,1.64,.31],[.02,.7,.20],[.02,-.4,.10],[.02,-1.1,.04]],0xe84a57,.032);
 
 // digestive / urinary / endocrine
-const liver=sph("liver",[.27,.62,.23],[.78,.32,.42],0x93413e,.94);liver.rotation.z=-.08;
+const liver=sph("liver",[.27,.62,.23],[.78,.32,.42],0x93413e,.94);liver.rotation.z=-.08;liver.userData.baseRotation=liver.rotation.clone();
 sph("gallbladder",[.50,.40,.35],[.09,.18,.09],0x66a267,.95);
-const stomach=sph("stomach",[-.32,.46,.23],[.33,.48,.29],0xd77f71,.94);stomach.rotation.z=-.42;
+const stomach=sph("stomach",[-.32,.46,.23],[.33,.48,.29],0xd77f71,.94);stomach.rotation.z=-.42;stomach.userData.baseRotation=stomach.rotation.clone();
 for(let i=0;i<6;i++){const t=tor("intestines",[(i%2?.12:-.12),.05-(i%3)*.16,.20],.28+i*.055,.07,0xe8a58a,[Math.PI/2,0,(i%2?1:-1)*.45],Math.PI*1.65)}
 for(const side of [-1,1])sph("kidneys",[side*.42,.33,-.22],[.19,.35,.16],0x914057,.95);
 sph("bladder",[0,-.92,.13],[.25,.29,.20],0xd58ca5,.85);
