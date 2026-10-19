@@ -16,7 +16,7 @@ header{display:flex;align-items:center;gap:14px;padding:10px 14px;border-bottom:
 .logo{display:flex;align-items:center;gap:10px;min-width:220px}.mark{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,var(--cyan),var(--violet));display:grid;place-items:center;color:#04101b;font-weight:900;box-shadow:0 0 28px rgba(97,228,255,.2)}.logo strong{display:block;font-size:14px;letter-spacing:.05em}.logo small{display:block;color:var(--muted);margin-top:2px}
 .search{position:relative;flex:1;max-width:700px}.search input{width:100%;height:44px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:#081522;color:var(--text);padding:0 16px;outline:none}.search input:focus{border-color:#4fa9c4;box-shadow:0 0 0 3px rgba(97,228,255,.07)}
 .search-results{display:none;position:absolute;top:50px;left:0;right:0;max-height:430px;overflow:auto;background:#081522;border:1px solid #24435f;border-radius:15px;box-shadow:0 24px 70px rgba(0,0,0,.45);z-index:40}.result{display:grid;grid-template-columns:34px 1fr auto;gap:9px;align-items:center;padding:10px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer}.result:hover{background:#10243a}.result small{display:block;color:var(--muted);margin-top:2px}.tag{font-size:9px;border:1px solid #294966;border-radius:7px;padding:4px 6px;color:#a8bccd}
-.header-actions{margin-left:auto;display:flex;gap:7px}.btn{border:1px solid rgba(255,255,255,.1);background:#0a1827;color:var(--text);border-radius:11px;padding:10px 12px;cursor:pointer}.btn.primary{border:0;background:linear-gradient(135deg,#14758d,#6c4daf);font-weight:800}.btn.live{border-color:rgba(102,224,170,.42);background:rgba(18,63,54,.82);color:#d9fff0;box-shadow:0 0 0 1px rgba(102,224,170,.08),0 0 22px rgba(102,224,170,.08)}.btn.live.off{border-color:rgba(255,255,255,.1);background:#0a1827;color:#9fb0bf;box-shadow:none}.btn:hover{filter:brightness(1.15)}
+.header-actions{margin-left:auto;display:flex;gap:7px}.btn{border:1px solid rgba(255,255,255,.1);background:#0a1827;color:var(--text);border-radius:11px;padding:10px 12px;cursor:pointer}.btn.primary{border:0;background:linear-gradient(135deg,#14758d,#6c4daf);font-weight:800}.btn.live{border-color:rgba(102,224,170,.42);background:rgba(18,63,54,.82);color:#d9fff0;box-shadow:0 0 0 1px rgba(102,224,170,.08),0 0 22px rgba(102,224,170,.08)}.btn.live.off{border-color:rgba(255,255,255,.1);background:#0a1827;color:#9fb0bf;box-shadow:none}.btn.detail-ready{border-color:rgba(97,228,255,.32);background:rgba(11,40,57,.82);color:#d8f8ff}.btn.detail-ready.off{background:#0a1827;color:#8ea5b8;border-color:rgba(255,255,255,.1)}.btn:hover{filter:brightness(1.15)}
 main{min-height:0;display:grid;grid-template-columns:290px minmax(0,1fr) 370px}.panel{background:rgba(7,16,28,.88);backdrop-filter:blur(16px);overflow:auto;min-height:0}.left{border-right:1px solid rgba(255,255,255,.08);padding:13px}.right{border-left:1px solid rgba(255,255,255,.08)}
 .section-label{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:#7690a7;font-weight:800;margin:14px 7px 8px}.sys{width:100%;display:grid;grid-template-columns:30px 1fr auto;gap:9px;align-items:center;border:1px solid transparent;background:transparent;color:var(--text);border-radius:12px;padding:9px;text-align:left;cursor:pointer;margin-bottom:3px}.sys:hover,.sys.active{background:#102239;border-color:#1c3a56}.ico{width:29px;height:29px;border-radius:9px;background:#11263a;display:grid;place-items:center}.sys small{display:block;color:var(--muted);margin-top:1px}.count{font-size:9px;padding:3px 6px;border-radius:99px;border:1px solid var(--line);color:#94a9bc}
 .tree{font-size:12px}.tree-row{display:flex;align-items:center;gap:6px;min-height:32px;border-radius:9px;padding-right:5px;cursor:pointer}.tree-row:hover,.tree-row.active{background:#10243a}.tree-arrow{width:16px;color:#6d879d}.tree-dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px}.tree-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tree-level{font-size:9px;color:#71879a;margin-left:auto}
@@ -34,7 +34,7 @@ main{min-height:0;display:grid;grid-template-columns:290px minmax(0,1fr) 370px}.
 <header>
   <div class="logo"><div class="mark">H3</div><div><strong>HUMAN ATLAS 3D</strong><small>From whole body to deep anatomy</small></div></div>
   <div class="search"><input id="search" placeholder="Search skull, frontal lobe, C1, aorta, kidney..."/><div id="results" class="search-results"></div></div>
-  <div class="header-actions"><button id="liveToggle" class="btn live">● Live body</button><button id="reset" class="btn">Reset</button><button id="quiz" class="btn primary">Quiz me</button></div>
+  <div class="header-actions"><button id="detailToggle" class="btn">Loading detailed body…</button><button id="liveToggle" class="btn live">● Live body</button><button id="reset" class="btn">Reset</button><button id="quiz" class="btn primary">Quiz me</button></div>
 </header>
 <main>
 <aside class="panel left">
@@ -62,7 +62,13 @@ main{min-height:0;display:grid;grid-template-columns:290px minmax(0,1fr) 370px}.
 <script type="module">
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
+import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
+import {DRACOLoader} from "three/addons/loaders/DRACOLoader.js";
 import {systems,anatomy,byId,childrenOf,descendantsOf} from "./anatomy-data.js";
+
+const IS_SWA=location.hostname.endsWith("syracusewebagency.com");
+const ASSET_PREFIX=IS_SWA?"/sites/human-atlas-3d/assets/":"./assets/";
+const LICENSE_URL=IS_SWA?"/sites/human-atlas-3d/THIRD_PARTY_NOTICES.md":"./THIRD_PARTY_NOTICES.md";
 
 const viewport=document.getElementById("viewport");
 const scene=new THREE.Scene();
@@ -77,7 +83,7 @@ const root=new THREE.Group();scene.add(root);
 const meshes=[],meshById={};let selected=byId.body,systemFilter="all",isolated=false,exploded=false,currentDepth=0;
 
 function material(color,opacity=.9){return new THREE.MeshPhysicalMaterial({color,roughness:.52,metalness:0,clearcoat:.06,transparent:opacity<1,opacity,side:THREE.DoubleSide})}
-function register(m,id){m.userData.id=id;(meshById[id]??=[]).push(m);meshes.push(m);root.add(m);return m}
+function register(m,id){m.userData.id=id;m.userData.source=m.userData.source||"procedural";(meshById[id]??=[]).push(m);meshes.push(m);root.add(m);return m}
 function rememberBase(m){m.userData.basePosition=m.position.clone();m.userData.baseScale=m.scale.clone();m.userData.baseRotation=m.rotation.clone();return m}
 function sph(id,pos,scale,color,opacity=.92){const m=register(new THREE.Mesh(new THREE.SphereGeometry(1,40,30),material(color,opacity)),id);m.position.set(...pos);m.scale.set(...scale);return rememberBase(m)}
 function cap(id,pos,r,len,color,rot=[0,0,0],opacity=.92){const m=register(new THREE.Mesh(new THREE.CapsuleGeometry(r,len,12,24),material(color,opacity)),id);m.position.set(...pos);m.rotation.set(...rot);return rememberBase(m)}
@@ -87,7 +93,8 @@ function tube(id,points,color,r=.024){const curve=new THREE.CatmullRomCurve3(poi
 function colorFor(id){const a=byId[id];return a?.system?systems[a.system].color:"#7bbbd0"}
 
 const skin=new THREE.MeshPhysicalMaterial({color:0x72c8dc,transparent:true,opacity:.055,roughness:.25,transmission:.08,depthWrite:false,side:THREE.DoubleSide});
-function shell(geo,pos,scale=[1,1,1],rot=[0,0,0]){const m=new THREE.Mesh(geo,skin);m.position.set(...pos);m.scale.set(...scale);m.rotation.set(...rot);root.add(m)}
+const shellMeshes=[];
+function shell(geo,pos,scale=[1,1,1],rot=[0,0,0]){const m=new THREE.Mesh(geo,skin);m.position.set(...pos);m.scale.set(...scale);m.rotation.set(...rot);m.userData.source="procedural-shell";shellMeshes.push(m);root.add(m)}
 shell(new THREE.SphereGeometry(1,32,24),[0,3.33,0],[.72,.92,.66]);shell(new THREE.CapsuleGeometry(.73,2.48,12,24),[0,1.35,0],[1,1,.78]);
 shell(new THREE.CapsuleGeometry(.27,2.65,10,18),[-1.03,1.08,0],[1,1,1],[0,0,-.08]);shell(new THREE.CapsuleGeometry(.27,2.65,10,18),[1.03,1.08,0],[1,1,1],[0,0,.08]);
 shell(new THREE.CapsuleGeometry(.34,2.9,10,18),[-.48,-2,0],[1,1,1],[0,0,.05]);shell(new THREE.CapsuleGeometry(.34,2.9,10,18),[.48,-2,0],[1,1,1],[0,0,-.05]);
@@ -313,6 +320,169 @@ function animatePhysiology(t){
   showFlows();
 }
 
+
+
+const detailedState={
+  loaded:false,enabled:true,loading:false,error:null,
+  skinRoot:null,organsRoot:null,skeletonRoot:null,
+  organPivots:new Map(),detailedMeshes:[],skeletonMeshes:[]
+};
+const detailedFallbackIds=new Set([
+  "right-lung","left-lung","right-atrium","right-ventricle","left-atrium","left-ventricle",
+  "liver","stomach","kidneys","intestines","frontal-lobe","parietal-lobe","temporal-lobe",
+  "occipital-lobe","cerebellum","brainstem"
+]);
+const detailedSkeletonFallbackIds=new Set(["ribs","sternum","humerus","radius","ulna"]);
+
+function base64ToBuffer(b64){
+  const binary=atob(b64),bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  return bytes.buffer;
+}
+const dracoLoader=new DRACOLoader();
+dracoLoader.setDecoderPath("https://unpkg.com/three@0.170.0/examples/jsm/libs/draco/gltf/");
+dracoLoader.preload();
+const gltfLoader=new GLTFLoader();
+gltfLoader.setDRACOLoader(dracoLoader);
+function parseGlbBase64(b64){
+  return new Promise((resolve,reject)=>gltfLoader.parse(base64ToBuffer(b64),"",resolve,reject));
+}
+function semanticOrganId(name=""){
+  const m=String(name).match(/^([a-z][a-z0-9-]*)__FMA\d+$/i);
+  return m?m[1].toLowerCase():null;
+}
+const detailColors={
+  stomach:0xc97870,liver:0x7d3039,kidneys:0x8f4854,lungs:0xd98e98,
+  heart:0xbd3046,intestines:0xd08a69,brain:0xd98599
+};
+const detailMaterials=new Map();
+function detailedMaterial(id){
+  if(detailMaterials.has(id))return detailMaterials.get(id);
+  const opacity=id==="lungs"?.78:id==="brain"?.94:.96;
+  const m=new THREE.MeshPhysicalMaterial({
+    color:detailColors[id]||0xcc8b82,roughness:id==="heart"?.48:.66,clearcoat:id==="heart"?.18:.07,
+    transparent:opacity<1,opacity,side:THREE.DoubleSide
+  });
+  detailMaterials.set(id,m);return m;
+}
+function registerDetailedMesh(mesh,id){
+  mesh.userData={...mesh.userData,id,source:"detailed"};
+  mesh.material=detailedMaterial(id);
+  mesh.castShadow=true;mesh.receiveShadow=true;
+  (meshById[id]??=[]).push(mesh);meshes.push(mesh);detailedState.detailedMeshes.push(mesh);
+}
+function makeOrganPivot(assetRoot,mesh,id){
+  assetRoot.updateMatrixWorld(true);
+  const box=new THREE.Box3().setFromObject(mesh);
+  const centerWorld=box.getCenter(new THREE.Vector3());
+  const centerLocal=assetRoot.worldToLocal(centerWorld.clone());
+  const pivot=new THREE.Group();pivot.name="Detailed "+id;pivot.position.copy(centerLocal);assetRoot.add(pivot);pivot.attach(mesh);
+  rememberBase(pivot);
+  if(!detailedState.organPivots.has(id))detailedState.organPivots.set(id,[]);
+  detailedState.organPivots.get(id).push(pivot);
+  registerDetailedMesh(mesh,id);
+}
+function fitDetailedBody(rootObj){
+  rootObj.scale.setScalar(1.16);
+  rootObj.position.set(0,.30,0);
+}
+function mapSkeletonName(name=""){
+  if(/sternum/i.test(name))return "sternum";
+  if(/thoracic vertebra/i.test(name))return "thoracic-spine";
+  if(/rib|clavicle|scapula/i.test(name))return "ribs";
+  if(/humerus/i.test(name))return "humerus";
+  if(/radius/i.test(name))return "radius";
+  if(/ulna/i.test(name))return "ulna";
+  return null;
+}
+function isBoneNode(name=""){
+  return /(sternum|vertebra|rib|clavicle|scapula|humerus|radius|ulna|metacarpal|phalanx|capitate|hamate|lunate|pisiform|scaphoid|trapezium|trapezoid|triquetrum|sesamoid)/i.test(name)
+    && !/muscle/i.test(name);
+}
+function configureDetailedSkeleton(rootObj){
+  rootObj.updateMatrixWorld(true);
+  const originals=[];
+  rootObj.traverse(node=>{if(node.isMesh)originals.push(node)});
+  originals.forEach(node=>{
+    if(!isBoneNode(node.name)){node.visible=false;return}
+    node.material=new THREE.MeshPhysicalMaterial({color:0xddd7c6,roughness:.70,clearcoat:.06,side:THREE.DoubleSide});
+    node.castShadow=true;node.receiveShadow=true;node.userData.source="detailed-skeleton";
+    const id=mapSkeletonName(node.name);
+    if(id){node.userData.id=id;(meshById[id]??=[]).push(node);meshes.push(node);detailedState.skeletonMeshes.push(node)}
+  });
+  const mirrored=new THREE.Group();mirrored.name="Mirrored detailed left bones";rootObj.add(mirrored);
+  originals.filter(node=>node.visible&&/\.r\.?$/i.test(node.name)).forEach(node=>{
+    node.updateWorldMatrix(true,false);
+    const clone=node.clone();clone.geometry=node.geometry;clone.material=node.material;
+    clone.name=node.name.replace(/\.r\.?$/i,".l");
+    clone.matrix.copy(node.matrixWorld);clone.matrix.premultiply(new THREE.Matrix4().makeScale(-1,1,1));
+    clone.matrix.decompose(clone.position,clone.quaternion,clone.scale);
+    clone.userData={...node.userData,source:"detailed-skeleton"};
+    mirrored.add(clone);
+    const id=mapSkeletonName(clone.name);
+    if(id){clone.userData.id=id;(meshById[id]??=[]).push(clone);meshes.push(clone);detailedState.skeletonMeshes.push(clone)}
+  });
+  rootObj.updateMatrixWorld(true);
+  const visibleBones=[];rootObj.traverse(n=>{if(n.isMesh&&n.visible)visibleBones.push(n)});
+  const box=new THREE.Box3();visibleBones.forEach(n=>box.expandByObject(n));
+  const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
+  const scale=3.55/Math.max(size.y,.001);
+  rootObj.scale.setScalar(scale);
+  rootObj.position.set(-center.x*scale,.83-center.y*scale,-center.z*scale+.02);
+}
+function setDetailedMode(enabled){
+  detailedState.enabled=Boolean(enabled&&detailedState.loaded);
+  if(detailedState.skinRoot)detailedState.skinRoot.visible=detailedState.enabled;
+  if(detailedState.organsRoot)detailedState.organsRoot.visible=detailedState.enabled;
+  if(detailedState.skeletonRoot)detailedState.skeletonRoot.visible=detailedState.enabled;
+  shellMeshes.forEach(m=>m.visible=!detailedState.enabled);
+  meshes.forEach(m=>{
+    if(m.userData.source==="procedural"){
+      m.userData.detailHidden=detailedState.enabled&&(detailedFallbackIds.has(m.userData.id)||detailedSkeletonFallbackIds.has(m.userData.id));
+    }
+  });
+  applySystem(systemFilter);
+  const b=document.getElementById("detailToggle");
+  if(b){b.textContent=detailedState.enabled?"Detailed body ✓":"Detailed body off";b.classList.add("detail-ready");b.classList.toggle("off",!detailedState.enabled)}
+}
+async function loadDetailedBody(){
+  if(detailedState.loading||detailedState.loaded)return;
+  detailedState.loading=true;
+  const button=document.getElementById("detailToggle");
+  try{
+    const [organModule,skinModule,s1,s2,s3]=await Promise.all([
+      import(ASSET_PREFIX+"bodyparts3d-organs.js"),
+      import(ASSET_PREFIX+"bodyparts3d-skin.js"),
+      import(ASSET_PREFIX+"open3d-skeleton-1.js"),
+      import(ASSET_PREFIX+"open3d-skeleton-2.js"),
+      import(ASSET_PREFIX+"open3d-skeleton-3.js")
+    ]);
+    const [organGltf,skinGltf,skeletonGltf]=await Promise.all([
+      parseGlbBase64(organModule.default),
+      parseGlbBase64(skinModule.default),
+      parseGlbBase64(s1.default+s2.default+s3.default)
+    ]);
+
+    const organRoot=organGltf.scene;organRoot.name="BodyParts3D detailed organs";
+    const organMeshes=[];organRoot.traverse(n=>{if(n.isMesh&&semanticOrganId(n.name))organMeshes.push(n)});
+    organMeshes.forEach(mesh=>makeOrganPivot(organRoot,mesh,semanticOrganId(mesh.name)));
+    fitDetailedBody(organRoot);root.add(organRoot);detailedState.organsRoot=organRoot;
+
+    const skinRoot=skinGltf.scene;skinRoot.name="BodyParts3D scanned skin";
+    skinRoot.traverse(n=>{if(n.isMesh){n.material=new THREE.MeshPhysicalMaterial({color:0xc98a80,roughness:.72,transparent:true,opacity:.11,depthWrite:false,side:THREE.FrontSide,sheen:.12,sheenColor:new THREE.Color(0xe2ada4)});n.renderOrder=12}});
+    fitDetailedBody(skinRoot);root.add(skinRoot);detailedState.skinRoot=skinRoot;
+
+    const skeletonRoot=skeletonGltf.scene;skeletonRoot.name="Open3D detailed upper skeleton";
+    configureDetailedSkeleton(skeletonRoot);root.add(skeletonRoot);detailedState.skeletonRoot=skeletonRoot;
+
+    detailedState.loaded=true;detailedState.loading=false;
+    setDetailedMode(true);
+  }catch(error){
+    detailedState.loading=false;detailedState.error=String(error?.message||error);
+    console.error("Detailed anatomy load failed",error);
+    if(button){button.textContent="Detailed mesh retry";button.classList.add("off")}
+  }
+}
 
 function ancestry(id){const arr=[];let cur=byId[id];while(cur){arr.unshift(cur);cur=cur.parent?byId[cur.parent]:null}return arr}
 function hasVisibleMesh(a){return !!(meshById[a.id]?.length)}
